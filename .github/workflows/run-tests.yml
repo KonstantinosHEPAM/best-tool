@@ -36,8 +36,8 @@ jobs:
     strategy:
       fail-fast: false # Prevents one failing website from stopping the whole test suite
       max-parallel: 10  # Runs up to 10 URLs simultaneously to optimize speed
-    matrix:
-      target_url: ${{ fromJson(needs.prepare-matrix.outputs.urls) }}
+      matrix: # Fixed alignment here (nested correctly under strategy)
+        target_url: ${{ fromJson(needs.prepare-matrix.outputs.urls) }}
 
     steps:
       - name: ⬇️ Checkout Repository
@@ -159,3 +159,6 @@ jobs:
 
               markdown += \`| \${url} | \${didomiConsent} | \${didomiReady} | \${viewItemList} | \${error} |\n\`;
             });
+
+            fs.writeFileSync(summaryFile, markdown);
+          "
