@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
 
 jobs:
+  # JOB 1: Read config and dynamically extract URLs for the Matrix
   prepare-matrix:
     runs-on: ubuntu-latest
     outputs:
@@ -27,6 +28,7 @@ jobs:
           ")
           echo "urls=${URLS_JSON}" >> $GITHUB_OUTPUT
 
+  # JOB 2: Execute tests in PARALLEL using GitHub Matrix
   execute-suite:
     needs: prepare-matrix
     runs-on: ubuntu-latest
@@ -75,6 +77,7 @@ jobs:
           path: console_output.txt
           retention-days: 1
 
+  # JOB 3: Collect all stashed reports and compile the Online Summary Tables
   generate-summary:
     needs: execute-suite
     runs-on: ubuntu-latest
@@ -110,10 +113,15 @@ jobs:
                 if (fs.existsSync(logPath)) {
                   const logContent = fs.readFileSync(logPath, 'utf8');
                   
-                  let currentUrl = 'Unknown URL';
-                  const urlMatch = logContent.match(/https:\/\/www\.msc[^\s'\"]+/);
-                  if (urlMatch) currentUrl = urlMatch.replace(/%20/g, ' ');
+                  // Safe URL parsing with fallback if match is null
+                  let currentUrl = 'Unknown URL / Process Log';
+                  const urlMatch = logContent.match(/https?:\/\/[^\s'\"\]\}]+/g);
+                  if (urlMatch) {
+                    const mscUrl = urlMatch.find(u => u.includes('msc'));
+                    if (mscUrl) currentUrl = mscUrl.replace(/[\,\"\']/g, '').replace(/%20/g, ' ');
+                  }
 
+                  // --- Table 1 Script Detection ---
                   let missingArr = [];
                   if (logContent.toLowerCase().includes('google tag manager') && (logContent.toLowerCase().includes('missing') || logContent.toLowerCase().includes('not found') || logContent.includes('❌'))) {
                     missingArr.push('Google Tag Manager');
@@ -126,13 +134,16 @@ jobs:
                   }
                   
                   let missing = missingArr.length > 0 ? missingArr.join(', ') : 'None ✅';
-                  let status = 'Success ✅';
-                  if (logContent.includes('ERROR') || logContent.includes('TimeoutError') || logContent.includes('failed') || logContent.includes('ERR_')) {
-                    status = '⚠️ Failed';
+                  let status = missingArr.length > 0 ? '⚠️ Failed' : 'Success ✅';
+                  
+                  // Global error fallback check
+                  if (logContent.includes('TimeoutError') || logContent.includes('ERR_CONNECTION')) {
+                    status = '⚠️ Failed (Timeout)';
                   }
                   
                   markdown += '| ' + currentUrl + ' | ' + missing + ' | ' + status + ' |\n';
 
+                  // --- Table 2 DataLayer Event Detection ---
                   const didomiConsent = logContent.includes('didomi-consent') || logContent.includes('didomi_consent') || logContent.includes('consent_changed') ? '✅' : '❌';
                   const didomiReady = logContent.includes('didomi-ready') || logContent.includes('didomi_ready') ? '✅' : '❌';
                   const viewItemList = logContent.includes('view_item_list') || logContent.includes('view_item') ? '✅' : '❌';
