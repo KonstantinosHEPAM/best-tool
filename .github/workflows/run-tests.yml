@@ -16,7 +16,6 @@ jobs:
       - name: ⚙️ Extract URLs from Config
         id: get-urls
         run: |
-          # Parse the config JSON file and extract the urls array into a single-line JSON string
           URLS_JSON=$(node -e "
             const fs = require('fs');
             const file = fs.existsSync('config.template.json') ? 'config.template.json' : 'config.json';
@@ -34,9 +33,9 @@ jobs:
     needs: prepare-matrix
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false # Prevents one failing website from stopping the whole test suite
-      max-parallel: 10  # Runs up to 10 URLs simultaneously to optimize speed
-      matrix: # Fixed alignment here (nested correctly under strategy)
+      fail-fast: false
+      max-parallel: 10  
+      matrix:
         target_url: ${{ fromJson(needs.prepare-matrix.outputs.urls) }}
 
     steps:
@@ -56,7 +55,6 @@ jobs:
 
       - name: ⚙️ Generate Config for Single URL
         run: |
-          # Copy the template but overwrite the 'urls' array to contain ONLY the current matrix URL
           node -e "
             const fs = require('fs');
             const file = fs.existsSync('config.template.json') ? 'config.template.json' : 'config.json';
@@ -74,7 +72,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          # Save each individual report with a unique name based on the matrix index
           name: report-${{ strategy.job-index }}
           path: report.json
           retention-days: 1
@@ -101,7 +98,6 @@ jobs:
             
             let combinedData = [];
             
-            // Loop through all downloaded artifact folders and extract report.json files
             if (fs.existsSync(dir)) {
               const folders = fs.readdirSync(dir);
               folders.forEach(folder => {
@@ -132,10 +128,11 @@ jobs:
               const url = row.url || 'N/A';
               let missing = 'None ✅';
               if (row.missingScripts && row.missingScripts.length > 0) {
-                missing = Array.isArray(row.missingScripts) ? row.missingScripts.map(s => \`\`\\\`\${s}\`\`\`).join(', ') : row.missingScripts;
+                // Fixed the string mapping syntax error
+                missing = Array.isArray(row.missingScripts) ? row.missingScripts.join(', ') : row.missingScripts;
               }
               const error = row.error || '—';
-              markdown += \`| \${url} | \${missing} | \${error} |\n\`;
+              markdown += '| ' + url + ' | ' + missing + ' | ' + error + ' |\n';
             });
 
             markdown += '\n---\n\n'; 
@@ -157,7 +154,7 @@ jobs:
               const viewItemList = hasViewItemList ? '✅' : '❌';
               const error = row.error || '—';
 
-              markdown += \`| \${url} | \${didomiConsent} | \${didomiReady} | \${viewItemList} | \${error} |\n\`;
+              markdown += '| ' + url + ' | ' + didomiConsent + ' | ' + didomiReady + ' | ' + viewItemList + ' | ' + error + ' |\n';
             });
 
             fs.writeFileSync(summaryFile, markdown);
