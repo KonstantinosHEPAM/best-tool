@@ -1,0 +1,29 @@
+{
+  "name": "best-tool",
+  "version": "1.0.0",
+  "description": "Flexible web testing tool for scripts and dataLayer events",
+  "main": "test-runner.js",
+  "bin": {
+    "best-tool": "test-runner.js"
+  },
+  "scripts": {
+    "start": "node test-runner.js",
+    "test": "node test-runner.js"
+  },
+  "keywords": [
+    "web-testing",
+    "gtm",
+    "datalayer",
+    "scripts",
+    "monitoring",
+    "automation"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "puppeteer": "^21.0.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

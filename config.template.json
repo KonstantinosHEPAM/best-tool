@@ -1,0 +1,53 @@
+{
+  "testName": "Production Web Tests",
+  "description": "Test suite for website production environment",
+  "urls": [
+    "https://example.com/page1",
+    "https://example.com/page2",
+    "https://example.com/page3"
+  ],
+  "scripts": [
+    {
+      "name": "Google Tag Manager",
+      "snippet": "GTM-XXXXX",
+      "description": "Primary tracking container"
+    },
+    {
+      "name": "Privacy Center",
+      "snippet": "sdk.privacy-center",
+      "description": "Consent management"
+    },
+    {
+      "name": "Analytics",
+      "snippet": "analytics.js",
+      "description": "Analytics library"
+    }
+  ],
+  "events": [
+    {
+      "name": "page_view",
+      "description": "User viewed a page",
+      "required": true
+    },
+    {
+      "name": "user_login",
+      "description": "User logged in",
+      "required": false
+    },
+    {
+      "name": "add_to_cart",
+      "description": "Product added to cart",
+      "required": false
+    }
+  ],
+  "timeout": {
+    "script": 25000,
+    "navigation": 25000,
+    "pageWait": 3000,
+    "total": 720000
+  },
+  "output": {
+    "reportFormat": "both",
+    "publishResults": true
+  }
+}

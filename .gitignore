@@ -1,0 +1,12 @@
+node_modules/
+config.json
+report_*.json
+report_*.md
+*.log
+npm-debug.log
+.env
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
