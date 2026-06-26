@@ -2,9 +2,28 @@
   "testName": "Production Web Tests",
   "description": "Test suite for website production environment",
   "urls": [
-    "https://example.com/page1",
-    "https://example.com/page2",
-    "https://example.com/page3"
+    "https://www.msccruisesusa.com",
+    "https://www.msccruzeiros.com.br",
+    "https://www.msccrociere.it",
+    "https://www.msccroisieres.fr",
+    "https://www.msccruises.co.za",
+    "https://www.msccruceros.es",
+    "https://www.msccruises.com/int",
+    "https://www.msccruises.ca",
+    "https://www.msccruises.ca/fr/",
+    "https://www.msccruises.fi",
+    "https://www.msccruises.dk",
+    "https://www.msccruises.no",
+    "https://www.msccruises.se",
+    "https://www.msccruises.nl",
+    "https://www.msccruises.be",
+    "https://www.msccruises.be/fr/"
+    "https://www.msccruises.com.au",
+    "https://www.msccruises.co.nz",
+    "https://www.msccruzeiros.pt",
+    "https://www.msccruceros.cl",
+    "https://www.msccruceros.com.ar",
+    "https://www.msccruceros.com"
   ],
   "scripts": [
     {
