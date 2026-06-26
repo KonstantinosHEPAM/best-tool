@@ -1,11 +1,43 @@
-name: 🚀 Web Testing Suite Runner
+name: 🚀 Parallel Web Testing Suite
 
 on:
   workflow_dispatch:
 
 jobs:
-  execute-suite:
+  # JOB 1: Read config and dynamically extract URLs for the Matrix
+  prepare-matrix:
     runs-on: ubuntu-latest
+    outputs:
+      urls: ${{ steps.get-urls.outputs.urls }}
+    steps:
+      - name: ⬇️ Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Extract URLs from Config
+        id: get-urls
+        run: |
+          # Parse the config JSON file and extract the urls array into a single-line JSON string
+          URLS_JSON=$(node -e "
+            const fs = require('fs');
+            const file = fs.existsSync('config.template.json') ? 'config.template.json' : 'config.json';
+            if (fs.existsSync(file)) {
+              const config = JSON.parse(fs.readFileSync(file, 'utf8'));
+              console.log(JSON.stringify(config.urls || []));
+            } else {
+              console.log('[]');
+            }
+          ")
+          echo "urls=${URLS_JSON}" >> $GITHUB_OUTPUT
+
+  # JOB 2: Execute tests in PARALLEL using GitHub Matrix
+  execute-suite:
+    needs: prepare-matrix
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false # Prevents one failing website from stopping the whole test suite
+      max-parallel: 10  # Runs up to 10 URLs simultaneously to optimize speed
+    matrix:
+      target_url: ${{ fromJson(needs.prepare-matrix.outputs.urls) }}
 
     steps:
       - name: ⬇️ Checkout Repository
@@ -22,31 +54,73 @@ jobs:
           PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: 'true'
         run: npm install --no-audit --no-fund
 
-      - name: ⚙️ Prepare Config File
+      - name: ⚙️ Generate Config for Single URL
         run: |
-          if [ -f config.template.json ]; then
-            cp config.template.json config.json
-          fi
+          # Copy the template but overwrite the 'urls' array to contain ONLY the current matrix URL
+          node -e "
+            const fs = require('fs');
+            const file = fs.existsSync('config.template.json') ? 'config.template.json' : 'config.json';
+            const config = JSON.parse(fs.readFileSync(file, 'utf8'));
+            config.urls = ['${{ matrix.target_url }}'];
+            fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
+          "
 
       - name: 🧪 Run Web Testing Suite
         env:
           PUPPETEER_EXECUTABLE_PATH: /usr/bin/google-chrome
         run: node test-runner.js
 
-      - name: 📊 Display Live Summary Online (Both Tables)
+      - name: 💾 Stash Temporary Report
         if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          # Save each individual report with a unique name based on the matrix index
+          name: report-${{ strategy.job-index }}
+          path: report.json
+          retention-days: 1
+
+  # JOB 3: Collect all stashed reports and compile the Online Summary Tables
+  generate-summary:
+    needs: execute-suite
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: ⬇️ Download All Temporary Reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: report-*
+          path: all-reports
+
+      - name: 📊 Compile and Display Both Tables Live
         run: |
           node -e "
             const fs = require('fs');
+            const path = require('path');
             const summaryFile = process.env.GITHUB_STEP_SUMMARY;
-            const reportFile = 'report.json'; 
-
-            if (!fs.existsSync(reportFile)) {
-              fs.appendFileSync(summaryFile, '## 📊 Test Run Summary\n\n⚠️ **Error:** \`report.json\` file not found. Ensure your framework exports execution results to this path.');
-              process.exit(0);
+            const dir = 'all-reports';
+            
+            let combinedData = [];
+            
+            // Loop through all downloaded artifact folders and extract report.json files
+            if (fs.existsSync(dir)) {
+              const folders = fs.readdirSync(dir);
+              folders.forEach(folder => {
+                const filePath = path.join(dir, folder, 'report.json');
+                if (fs.existsSync(filePath)) {
+                  try {
+                    const content = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+                    if (Array.isArray(content)) {
+                      combinedData = combinedData.concat(content);
+                    } else {
+                      combinedData.push(content);
+                    }
+                  } catch (e) {
+                    console.error('Error parsing: ' + filePath, e);
+                  }
+                }
+              });
             }
 
-            const data = JSON.parse(fs.readFileSync(reportFile, 'utf8'));
             let markdown = '';
 
             // --- TABLE 1: RUN-SCRIPT-CHECKS SUMMARY ---
@@ -54,7 +128,7 @@ jobs:
             markdown += '| URL | Missing Scripts | Error |\n';
             markdown += '| --- | --- | --- |\n';
             
-            data.forEach(row => {
+            combinedData.forEach(row => {
               const url = row.url || 'N/A';
               let missing = 'None ✅';
               if (row.missingScripts && row.missingScripts.length > 0) {
@@ -71,7 +145,7 @@ jobs:
             markdown += '| URL | didomi-consent | didomi-ready | view_item_list | Error |\n';
             markdown += '| --- | --- | --- | --- | --- |\n';
 
-            data.forEach(row => {
+            combinedData.forEach(row => {
               const url = row.url || 'N/A';
               
               const hasDidomiConsent = row.events && (row.events['didomi-consent'] || row.events.didomi_consent);
@@ -85,6 +159,3 @@ jobs:
 
               markdown += \`| \${url} | \${didomiConsent} | \${didomiReady} | \${viewItemList} | \${error} |\n\`;
             });
-
-            fs.appendFileSync(summaryFile, markdown);
-          "
