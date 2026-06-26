@@ -23,10 +23,13 @@ jobs:
           node-version: '20'
 
       - name: 📦 Install Dependencies
-        # This environment variable stops Puppeteer from freezing during download
+        # Use multiple configuration flags to guarantee Puppeteer stays lightweight
         env:
+          PUPPETEER_SKIP_DOWNLOAD: 'true'
           PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: 'true'
-        run: npm install
+        run: |
+          npm config set puppeteer_skip_download true
+          npm install --no-audit --no-fund
 
       - name: ⚙️ Generate Config File
         run: |
