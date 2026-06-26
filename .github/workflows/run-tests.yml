@@ -4,7 +4,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  # JOB 1: Read config and dynamically extract URLs for the Matrix
   prepare-matrix:
     runs-on: ubuntu-latest
     outputs:
@@ -28,7 +27,6 @@ jobs:
           ")
           echo "urls=${URLS_JSON}" >> $GITHUB_OUTPUT
 
-  # JOB 2: Execute tests in PARALLEL using GitHub Matrix
   execute-suite:
     needs: prepare-matrix
     runs-on: ubuntu-latest
@@ -63,112 +61,85 @@ jobs:
             fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
           "
 
-      - name: 🧪 Run Web Testing Suite
+      - name: 🧪 Run Web Testing Suite & Capture Output
         env:
           PUPPETEER_EXECUTABLE_PATH: /usr/bin/google-chrome
-        run: node test-runner.js
+        # This redirects the live console logs directly into a local text file
+        run: node test-runner.js > console_output.txt 2>&1 || true
 
-      - name: 💾 Stash Temporary Report
+      - name: 💾 Stash Console Output Logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: report-${{ strategy.job-index }}
-          path: report.json
+          name: log-${{ strategy.job-index }}
+          path: console_output.txt
           retention-days: 1
 
-  # JOB 3: Collect all stashed reports and compile the Online Summary Tables
   generate-summary:
     needs: execute-suite
     runs-on: ubuntu-latest
     if: always()
     steps:
-      - name: ⬇️ Download All Temporary Reports
+      - name: ⬇️ Download All Log Artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: report-*
-          path: all-reports
+          pattern: log-*
+          path: all-logs
 
-      - name: 📊 Compile and Display Both Tables Live
+      - name: 📊 Parse Console Outputs & Build Markdown Tables
         run: |
           node -e "
             const fs = require('fs');
             const path = require('path');
             const summaryFile = process.env.GITHUB_STEP_SUMMARY;
-            const dir = 'all-reports';
+            const dir = 'all-logs';
             
-            let combinedData = [];
+            let markdown = '## 📋 run-script-checks summary\n\n';
+            markdown += '| URL | Missing Scripts | Status |\n';
+            markdown += '| --- | --- | --- |\n';
             
+            let datalayerMarkdown = '## 📊 run-datalayer-checks summary\n\n';
+            datalayerMarkdown += '| URL | didomi-consent | didomi-ready | view_item_list |\n';
+            datalayerMarkdown += '| --- | --- | --- | --- |\n';
+
             if (fs.existsSync(dir)) {
               const folders = fs.readdirSync(dir);
+              
               folders.forEach(folder => {
-                const filePath = path.join(dir, folder, 'report.json');
-                if (fs.existsSync(filePath)) {
-                  try {
-                    const content = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-                    if (Array.isArray(content)) {
-                      combinedData = combinedData.concat(content);
-                    } else {
-                      combinedData.push(content);
-                    }
-                  } catch (e) {
-                    console.error('Error parsing: ' + filePath, e);
+                const logPath = path.join(dir, folder, 'console_output.txt');
+                if (fs.existsSync(logPath)) {
+                  const logContent = fs.readFileSync(logPath, 'utf8');
+                  
+                  // Extract the URL from the log or folder context
+                  // We dynamically scan the log file text to find what happened
+                  const lines = logContent.split('\n');
+                  let currentUrl = 'Unknown URL';
+                  
+                  // Try to find any MSC URL mentioned inside the logs
+                  const urlMatch = logContent.match(/https:\/\/www\.msc[^\s'\"]+/);
+                  if (urlMatch) currentUrl = urlMatch[0];
+
+                  // --- Table 1 Smart Text Scanning ---
+                  let missing = 'None ✅';
+                  if (logContent.includes('Google Tag Manager') && (logContent.includes('missing') || logContent.includes('not found') || logContent.includes('❌'))) {
+                    missing = 'Google Tag Manager';
                   }
+                  if (logContent.includes('Privacy Center') && (logContent.includes('missing') || logContent.includes('not found') || logContent.includes('❌'))) {
+                    missing = missing === 'None ✅' ? 'Privacy Center' : missing + ', Privacy Center';
+                  }
+                  
+                  let status = logContent.includes('fail') || logContent.includes('Error') ? '⚠️ Failed' : 'Success ✅';
+                  markdown += '| ' + currentUrl + ' | ' + missing + ' | ' + status + ' |\n';
+
+                  // --- Table 2 Smart Text Scanning ---
+                  const didomiConsent = logContent.includes('didomi-consent') || logContent.includes('didomi_consent') ? '✅' : '❌';
+                  const didomiReady = logContent.includes('didomi-ready') || logContent.includes('didomi_ready') ? '✅' : '❌';
+                  const viewItemList = logContent.includes('view_item_list') || logContent.includes('view_item_list') ? '✅' : '❌';
+                  
+                  datalayerMarkdown += '| ' + currentUrl + ' | ' + didomiConsent + ' | ' + didomiReady + ' | ' + viewItemList + ' |\n';
                 }
               });
             }
 
-            let markdown = '';
-
-            // --- TABLE 1: RUN-SCRIPT-CHECKS SUMMARY ---
-            markdown += '## 📋 run-script-checks summary\n\n';
-            markdown += '| URL | Missing Scripts | Error |\n';
-            markdown += '| --- | --- | --- |\n';
-            
-            combinedData.forEach(row => {
-              const url = row.url || row.target || 'N/A';
-              
-              // Smart-fallback for missing scripts property names
-              let rawMissing = row.missingScripts || row.missing_scripts || row.missing || [];
-              let missing = 'None ✅';
-              if (Array.isArray(rawMissing) && rawMissing.length > 0) {
-                missing = rawMissing.join(', ');
-              } else if (typeof rawMissing === 'string' && rawMissing.trim().length > 0) {
-                missing = rawMissing;
-              }
-              
-              const error = row.error || '—';
-              markdown += '| ' + url + ' | ' + missing + ' | ' + error + ' |\n';
-            });
-
-            markdown += '\n---\n\n'; 
-
-            // --- TABLE 2: RUN-DATALAYER-CHECKS SUMMARY ---
-            markdown += '## 📊 run-datalayer-checks summary\n\n';
-            markdown += '| URL | didomi-consent | didomi-ready | view_item_list | Error |\n';
-            markdown += '| --- | --- | --- | --- | --- |\n';
-
-            combinedData.forEach(row => {
-              const url = row.url || row.target || 'N/A';
-              
-              // Smart lookup for event states inside objects or sub-arrays
-              const searchEvent = (evtName) => {
-                if (!row.events) return false;
-                if (typeof row.events === 'object' && !Array.isArray(row.events)) {
-                  return row.events[evtName] || row.events[evtName.replace(/-/g, '_')] || false;
-                }
-                if (Array.isArray(row.events)) {
-                  return row.events.some(e => e === evtName || (e && (e.name === evtName || e.event === evtName)));
-                }
-                return false;
-              };
-
-              const didomiConsent = searchEvent('didomi-consent') ? '✅' : '❌';
-              const didomiReady = searchEvent('didomi-ready') ? '✅' : '❌';
-              const viewItemList = searchEvent('view_item_list') ? '✅' : '❌';
-              const error = row.error || '—';
-
-              markdown += '| ' + url + ' | ' + didomiConsent + ' | ' + didomiReady + ' | ' + viewItemList + ' | ' + error + ' |\n';
-            });
-
-            fs.writeFileSync(summaryFile, markdown);
+            fs.writeFileSync(summaryFile, markdown + '\n---\n\n' + datalayerMarkdown);
           "
