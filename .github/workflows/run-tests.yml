@@ -1,7 +1,7 @@
 name: 🚀 Web Testing Suite Runner
 
 on:
-  workflow_dispatch: # Simple clear action button with no input boxes needed
+  workflow_dispatch:
 
 jobs:
   execute-suite:
@@ -20,18 +20,17 @@ jobs:
         env:
           PUPPETEER_SKIP_DOWNLOAD: 'true'
           PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: 'true'
-        run: |
-          npm config set puppeteer_skip_download true
-          npm install --no-audit --no-fund
+        run: npm install --no-audit --no-fund
 
       - name: ⚙️ Prepare Config File
         run: |
-          # If you committed the URLs to config.template.json, copy it to config.json
           if [ -f config.template.json ]; then
             cp config.template.json config.json
           fi
 
       - name: 🧪 Run Web Testing Suite
+        env:
+          PUPPETEER_EXECUTABLE_PATH: /usr/bin/google-chrome
         run: node test-runner.js
 
       - name: 📊 Display Live Summary Online
