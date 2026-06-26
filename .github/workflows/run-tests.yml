@@ -1,4 +1,4 @@
-\name: 🚀 Parallel Web Testing Suite
+name: 🚀 Parallel Web Testing Suite
 
 on:
   workflow_dispatch:
@@ -64,7 +64,6 @@ jobs:
       - name: 🧪 Run Web Testing Suite & Capture Output
         env:
           PUPPETEER_EXECUTABLE_PATH: /usr/bin/google-chrome
-          # Anti-bot bypass environment configurations for headless chrome
           NODE_ENV: production
         run: node test-runner.js > console_output.txt 2>&1 || true
 
@@ -111,22 +110,22 @@ jobs:
                 if (fs.existsSync(logPath)) {
                   const logContent = fs.readFileSync(logPath, 'utf8');
                   
-                  const lines = logContent.split('\n');
                   let currentUrl = 'Unknown URL';
-                  
                   const urlMatch = logContent.match(/https:\/\/www\.msc[^\s'\"]+/);
-                  if (urlMatch) currentUrl = urlMatch[0].replace(/%20/g, ' ');
+                  if (urlMatch) currentUrl = urlMatch.replace(/%20/g, ' ');
 
-                  // Adjusted parsing logic to support both logging formats (explicit failure vs match)
-                  let missing = 'None ✅';
+                  let missingArr = [];
                   if (logContent.toLowerCase().includes('google tag manager') && (logContent.toLowerCase().includes('missing') || logContent.toLowerCase().includes('not found') || logContent.includes('❌'))) {
-                    missing = 'Google Tag Manager';
+                    missingArr.push('Google Tag Manager');
                   }
                   if (logContent.toLowerCase().includes('privacy center') && (logContent.toLowerCase().includes('missing') || logContent.toLowerCase().includes('not found') || logContent.includes('❌'))) {
-                    missing = missing === 'None ✅' ? 'Privacy Center' : missing + ', Privacy Center';
+                    missingArr.push('Privacy Center');
+                  }
+                  if (logContent.toLowerCase().includes('analytics') && (logContent.toLowerCase().includes('missing') || logContent.toLowerCase().includes('not found') || logContent.includes('❌'))) {
+                    missingArr.push('Analytics');
                   }
                   
-                  // Adaptive check to see if the page actually loaded or timed out
+                  let missing = missingArr.length > 0 ? missingArr.join(', ') : 'None ✅';
                   let status = 'Success ✅';
                   if (logContent.includes('ERROR') || logContent.includes('TimeoutError') || logContent.includes('failed') || logContent.includes('ERR_')) {
                     status = '⚠️ Failed';
@@ -134,7 +133,6 @@ jobs:
                   
                   markdown += '| ' + currentUrl + ' | ' + missing + ' | ' + status + ' |\n';
 
-                  // Dynamic text parsing for active events detected on the window/dataLayer object
                   const didomiConsent = logContent.includes('didomi-consent') || logContent.includes('didomi_consent') || logContent.includes('consent_changed') ? '✅' : '❌';
                   const didomiReady = logContent.includes('didomi-ready') || logContent.includes('didomi_ready') ? '✅' : '❌';
                   const viewItemList = logContent.includes('view_item_list') || logContent.includes('view_item') ? '✅' : '❌';
