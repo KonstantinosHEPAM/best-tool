@@ -125,12 +125,17 @@ jobs:
             markdown += '| --- | --- | --- |\n';
             
             combinedData.forEach(row => {
-              const url = row.url || 'N/A';
+              const url = row.url || row.target || 'N/A';
+              
+              // Smart-fallback for missing scripts property names
+              let rawMissing = row.missingScripts || row.missing_scripts || row.missing || [];
               let missing = 'None ✅';
-              if (row.missingScripts && row.missingScripts.length > 0) {
-                // Fixed the string mapping syntax error
-                missing = Array.isArray(row.missingScripts) ? row.missingScripts.join(', ') : row.missingScripts;
+              if (Array.isArray(rawMissing) && rawMissing.length > 0) {
+                missing = rawMissing.join(', ');
+              } else if (typeof rawMissing === 'string' && rawMissing.trim().length > 0) {
+                missing = rawMissing;
               }
+              
               const error = row.error || '—';
               markdown += '| ' + url + ' | ' + missing + ' | ' + error + ' |\n';
             });
@@ -143,15 +148,23 @@ jobs:
             markdown += '| --- | --- | --- | --- | --- |\n';
 
             combinedData.forEach(row => {
-              const url = row.url || 'N/A';
+              const url = row.url || row.target || 'N/A';
               
-              const hasDidomiConsent = row.events && (row.events['didomi-consent'] || row.events.didomi_consent);
-              const hasDidomiReady = row.events && (row.events['didomi-ready'] || row.events.didomi_ready);
-              const hasViewItemList = row.events && (row.events['view_item_list'] || row.events.view_item_list);
+              // Smart lookup for event states inside objects or sub-arrays
+              const searchEvent = (evtName) => {
+                if (!row.events) return false;
+                if (typeof row.events === 'object' && !Array.isArray(row.events)) {
+                  return row.events[evtName] || row.events[evtName.replace(/-/g, '_')] || false;
+                }
+                if (Array.isArray(row.events)) {
+                  return row.events.some(e => e === evtName || (e && (e.name === evtName || e.event === evtName)));
+                }
+                return false;
+              };
 
-              const didomiConsent = hasDidomiConsent ? '✅' : '❌';
-              const didomiReady = hasDidomiReady ? '✅' : '❌';
-              const viewItemList = hasViewItemList ? '✅' : '❌';
+              const didomiConsent = searchEvent('didomi-consent') ? '✅' : '❌';
+              const didomiReady = searchEvent('didomi-ready') ? '✅' : '❌';
+              const viewItemList = searchEvent('view_item_list') ? '✅' : '❌';
               const error = row.error || '—';
 
               markdown += '| ' + url + ' | ' + didomiConsent + ' | ' + didomiReady + ' | ' + viewItemList + ' | ' + error + ' |\n';
