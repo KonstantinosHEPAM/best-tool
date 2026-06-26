@@ -33,13 +33,58 @@ jobs:
           PUPPETEER_EXECUTABLE_PATH: /usr/bin/google-chrome
         run: node test-runner.js
 
-      - name: 📊 Display Live Summary Online
+      - name: 📊 Display Live Summary Online (Both Tables)
         if: always()
         run: |
-          echo "## 📊 Test Run Summary" >> $GITHUB_STEP_SUMMARY
-          echo "| Status | Execution Mode |" >> $GITHUB_STEP_SUMMARY
-          echo "| --- | --- |" >> $GITHUB_STEP_SUMMARY
-          echo "| Completed ✅ | All MSC Production URLs |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📝 Production Suite Output" >> $GITHUB_STEP_SUMMARY
-          echo "The framework targeted the multi-region ecosystem mapped inside your config file." >> $GITHUB_STEP_SUMMARY
+          node -e "
+            const fs = require('fs');
+            const summaryFile = process.env.GITHUB_STEP_SUMMARY;
+            const reportFile = 'report.json'; 
+
+            if (!fs.existsSync(reportFile)) {
+              fs.appendFileSync(summaryFile, '## 📊 Test Run Summary\n\n⚠️ **Error:** \`report.json\` file not found. Ensure your framework exports execution results to this path.');
+              process.exit(0);
+            }
+
+            const data = JSON.parse(fs.readFileSync(reportFile, 'utf8'));
+            let markdown = '';
+
+            // --- TABLE 1: RUN-SCRIPT-CHECKS SUMMARY ---
+            markdown += '## 📋 run-script-checks summary\n\n';
+            markdown += '| URL | Missing Scripts | Error |\n';
+            markdown += '| --- | --- | --- |\n';
+            
+            data.forEach(row => {
+              const url = row.url || 'N/A';
+              let missing = 'None ✅';
+              if (row.missingScripts && row.missingScripts.length > 0) {
+                missing = Array.isArray(row.missingScripts) ? row.missingScripts.map(s => \`\`\\\`\${s}\`\`\`).join(', ') : row.missingScripts;
+              }
+              const error = row.error || '—';
+              markdown += \`| \${url} | \${missing} | \${error} |\n\`;
+            });
+
+            markdown += '\n---\n\n'; 
+
+            // --- TABLE 2: RUN-DATALAYER-CHECKS SUMMARY ---
+            markdown += '## 📊 run-datalayer-checks summary\n\n';
+            markdown += '| URL | didomi-consent | didomi-ready | view_item_list | Error |\n';
+            markdown += '| --- | --- | --- | --- | --- |\n';
+
+            data.forEach(row => {
+              const url = row.url || 'N/A';
+              
+              const hasDidomiConsent = row.events && (row.events['didomi-consent'] || row.events.didomi_consent);
+              const hasDidomiReady = row.events && (row.events['didomi-ready'] || row.events.didomi_ready);
+              const hasViewItemList = row.events && (row.events['view_item_list'] || row.events.view_item_list);
+
+              const didomiConsent = hasDidomiConsent ? '✅' : '❌';
+              const didomiReady = hasDidomiReady ? '✅' : '❌';
+              const viewItemList = hasViewItemList ? '✅' : '❌';
+              const error = row.error || '—';
+
+              markdown += \`| \${url} | \${didomiConsent} | \${didomiReady} | \${viewItemList} | \${error} |\n\`;
+            });
+
+            fs.appendFileSync(summaryFile, markdown);
+          "
