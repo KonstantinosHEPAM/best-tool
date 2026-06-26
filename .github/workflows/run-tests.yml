@@ -1,0 +1,62 @@
+name: 🚀 Web Testing Suite Runner
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: 'The website URL to test'
+        required: true
+        default: 'https://example.com'
+        type: string
+
+jobs:
+  execute-suite:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: ⬇️ Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 📦 Install Dependencies
+        run: npm install
+
+      - name: ⚙️ Generate Config File
+        run: |
+          # Copy template to an active config.json file
+          cp config.template.json config.json
+          
+          # Dynamically inject the target URL into config.json using inline Node.js
+          node -e "
+            const fs = require('fs');
+            const config = JSON.parse(fs.readFileSync('config.json', 'utf8'));
+            
+            // Adaptive mapping fallback depending on your JSON structure
+            if (config.url) { config.url = '${{ github.event.inputs.target_url }}'; }
+            else if (config.target && config.target.url) { config.target.url = '${{ github.event.inputs.target_url }}'; }
+            else { config.targetUrl = '${{ github.event.inputs.target_url }}'; }
+            
+            fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
+          "
+
+      - name: 🧪 Run Web Testing Suite
+        run: node test-runner.js
+
+      - name: 📊 Upload Test Reports
+        if: always() # Always run this step to capture reports even if test assertions fail
+        uses: actions/upload-artifact@v4
+        with:
+          name: testing-suite-reports
+          path: |
+            *.json
+            *.md
+            !package.json
+            !package-lock.json
+            !config.json
+            !config.template.json
+          retention-days: 7
