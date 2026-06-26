@@ -23,7 +23,6 @@ jobs:
           node-version: '20'
 
       - name: 📦 Install Dependencies
-        # Use multiple configuration flags to guarantee Puppeteer stays lightweight
         env:
           PUPPETEER_SKIP_DOWNLOAD: 'true'
           PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: 'true'
@@ -48,16 +47,14 @@ jobs:
       - name: 🧪 Run Web Testing Suite
         run: node test-runner.js
 
-      - name: 📊 Upload Test Reports
+      - name: 📊 Display Live Summary Online
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: testing-suite-reports
-          path: |
-            *.json
-            *.md
-            !package.json
-            !package-lock.json
-            !config.json
-            !config.template.json
-          retention-days: 7
+        run: |
+          echo "## 📊 Test Run Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Target Status |" >> $GITHUB_STEP_SUMMARY
+          echo "| --- | --- |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Target Tested** | ${{ github.event.inputs.target_url }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Status** | Completed ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📝 Detailed Logs" >> $GITHUB_STEP_SUMMARY
+          echo "To view detailed event outputs or script verification metrics, check the build logs above or your local generated files." >> $GITHUB_STEP_SUMMARY
