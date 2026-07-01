@@ -46,14 +46,29 @@
       "description": "Primary tracking container"
     },
     {
-      "name": "Privacy Center",
-      "snippet": "sdk.privacy-center",
-      "description": "Consent management"
+      "name": "MyMSC App",
+      "snippet": "mymscapp",
+      "description": "MSC app integration"
     },
     {
-      "name": "Analytics",
-      "snippet": "analytics.js",
-      "description": "Analytics library"
+      "name": "Marketo",
+      "snippet": "app-lon05.marketo",
+      "description": "Marketo marketing automation"
+    },
+    {
+      "name": "RTP API",
+      "snippet": "rtp-api/v1/rtp.js",
+      "description": "Real-time personalization"
+    },
+    {
+      "name": "AB Tasty",
+      "snippet": "try.abtasty",
+      "description": "A/B testing platform"
+    },
+    {
+      "name": "Adobe DTM Launch",
+      "snippet": "https://assets.adobedtm.com/e89550510280/83e8aacd5ad3/launch-8a896a2706b5.min.js",
+      "description": "Adobe Experience Platform Launch"
     }
   ],
   "events": [
