@@ -1,10 +1,43 @@
 {
-  "testName": "Production Web Tests",
-  "description": "Test suite for website production environment",
+  "testName": "MSC Cruises Production Tests",
+  "description": "Test suite for MSC Cruises websites",
   "urls": [
-    "https://example.com/page1",
-    "https://example.com/page2",
-    "https://example.com/page3"
+    "https://www.msccruisesusa.com",
+    "https://www.msccruzeiros.com.br",
+    "https://www.msccruises.co.za",
+    "https://www.msccruises.com/int",
+    "https://www.msccruises.ca",
+    "https://www.msccruises.ca/fr/",
+    "https://www.msccruises.fi",
+    "https://www.msccruises.dk",
+    "https://www.msccruises.no",
+    "https://www.msccruises.se",
+    "https://www.msccruises.nl",
+    "https://www.msccruises.be",
+    "https://www.msccruises.be/fr",
+    "https://www.msccruises.com.au",
+    "https://www.msccruises.co.nz",
+    "https://www.msccruzeiros.pt",
+    "https://www.msccruceros.com.ar",
+    "https://www.msccruceros.cl",
+    "https://www.msccruisesusa.com/Search Result",
+    "https://www.msccruzeiros.com.br/Search Result",
+    "https://www.msccruises.co.za/Search Result",
+    "https://www.msccruises.com/int/Search Result",
+    "https://www.msccruises.ca/Search Result",
+    "https://www.msccruises.ca/fr/Search Result",
+    "https://www.msccruises.fi/Search Result",
+    "https://www.msccruises.dk/Search Result",
+    "https://www.msccruises.no/Search Result",
+    "https://www.msccruises.se/Search Result",
+    "https://www.msccruises.nl/Search Result",
+    "https://www.msccruises.be/Search Result",
+    "https://www.msccruises.be/fr/Search Result",
+    "https://www.msccruises.com.au/Search Result",
+    "https://www.msccruises.co.nz/Search Result",
+    "https://www.msccruzeiros.pt/Search Result",
+    "https://www.msccruceros.com.ar/Search Result",
+    "https://www.msccruceros.cl/Search Result"
   ],
   "scripts": [
     {
@@ -52,3 +85,4 @@
     "reportFormat": "both",
     "publishResults": true
   }
+}
