@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const https = require('https');
 const ScriptChecker = require('./lib/script-checker');
 const EventChecker = require('./lib/event-checker');
 const Reporter = require('./lib/reporter');
@@ -44,6 +45,35 @@ function validateConfig(config) {
   }
 }
 
+// Validate URL accessibility
+async function validateURL(url) {
+  return new Promise((resolve) => {
+    const timeout = setTimeout(() => {
+      resolve(false);
+    }, 5000);
+
+    https.head(url, { timeout: 5000 }, (res) => {
+      clearTimeout(timeout);
+      resolve(res.statusCode < 500);
+    }).on('error', () => {
+      clearTimeout(timeout);
+      resolve(false);
+    });
+  });
+}
+
+// Validate URLs upfront
+async function validateURLsAccessible(urls) {
+  console.log('🔍 Pre-checking URL accessibility...');
+  const checks = await Promise.all(urls.map(url => validateURL(url)));
+  const inaccessible = urls.filter((url, i) => !checks[i]);
+  
+  if (inaccessible.length > 0) {
+    console.warn(`⚠️  ${inaccessible.length} URLs may be inaccessible:`);
+    inaccessible.forEach(url => console.warn(`   - ${url}`));
+  }
+}
+
 // Main test runner
 async function runTests() {
   const config = loadConfig('config.json');
@@ -57,6 +87,10 @@ async function runTests() {
 
   const testName = config.testName || 'Web Tests';
   const reporter = new Reporter(testName);
+
+  // Get optimization settings
+  const concurrency = config.concurrency || 3;
+  const maxRetries = config.maxRetries || 2;
 
   // Set timeouts
   const scriptTimeout = config.timeout?.script || 25000;
@@ -74,33 +108,39 @@ async function runTests() {
     console.log(`\n🚀 Starting Tests: ${testName}`);
     console.log(`📍 URLs to check: ${config.urls.length}`);
     console.log(`🔍 Scripts to verify: ${config.scripts.length}`);
-    console.log(`📊 Events to track: ${config.events.length}\n`);
+    console.log(`📊 Events to track: ${config.events.length}`);
+    console.log(`⚡ Concurrency: ${concurrency} | Retries: ${maxRetries}\n`);
+
+    // Validate URLs
+    await validateURLsAccessible(config.urls);
 
     // Run script checks
-    console.log('━'.repeat(50));
+    console.log('\n' + '━'.repeat(50));
     console.log('Phase 1: Checking Scripts...');
     console.log('━'.repeat(50));
 
-    const scriptChecker = new ScriptChecker(scriptTimeout);
+    const scriptChecker = new ScriptChecker(scriptTimeout, maxRetries, concurrency);
     const scriptResults = await scriptChecker.checkAllURLs(
       config.urls,
       config.scripts
     );
+    console.log(`📊 Script Cache Stats:`, scriptChecker.getStats());
 
     // Run event checks
-    console.log('\n━'.repeat(50));
+    console.log('\n' + '━'.repeat(50));
     console.log('Phase 2: Checking DataLayer Events...');
     console.log('━'.repeat(50));
 
     const eventNames = config.events.map(e => e.name || e);
-    const eventChecker = new EventChecker(eventTimeout, pageWaitTime);
+    const eventChecker = new EventChecker(eventTimeout, pageWaitTime, maxRetries, concurrency);
     const eventResults = await eventChecker.checkAllURLs(
       config.urls,
       eventNames
     );
+    console.log(`📊 Event Cache Stats:`, eventChecker.getStats());
 
     // Generate reports
-    console.log('\n━'.repeat(50));
+    console.log('\n' + '━'.repeat(50));
     console.log('Phase 3: Generating Reports...');
     console.log('━'.repeat(50));
 
@@ -119,5 +159,5 @@ async function runTests() {
   }
 }
 
-// Run tests
+// Run with --expose-gc flag: node --expose-gc test-runner.js
 runTests();
